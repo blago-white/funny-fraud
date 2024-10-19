@@ -5,4 +5,8 @@ MAIN_MENU_KB = ReplyKeyboardMarkup(keyboard=[
     [KeyboardButton(text="📑Сеансы"), KeyboardButton(text="🔥Новый Сеанс")],
 ])
 
-EMPTY_KB = ReplyKeyboardMarkup()
+APPROVE_KB = ReplyKeyboardMarkup(keyboard=[
+    [KeyboardButton(text="✅Начать сеанс"), KeyboardButton(text="⛔️Отмена")]
+])
+
+EMPTY_KB = ReplyKeyboardMarkup(keyboard=[])
