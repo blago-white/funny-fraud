@@ -101,7 +101,8 @@ async def set_phone(message: Message, state: FSMContext):
 
 @router.message(SessionForm.approve_session)
 @db_service_provider
-async def approve_session(message: Message, state: FSMContext, service: SessionsService):
+async def approve_session(
+        message: Message, state: FSMContext, service: SessionsService):
     if message.text != "✅Начать сеанс":
         await message.reply("✅Отменен")
         await state.clear()
@@ -109,11 +110,20 @@ async def approve_session(message: Message, state: FSMContext, service: Sessions
 
     form = dict(await state.get_data())
 
-    service.add(passed_session=Session.from_dict(
+    session = Session.from_dict(
         dict_=form
-    ))
+    )
+
+    service.add(passed_session=session)
 
     await state.clear()
+
+    replyed = await message.reply(
+        text=f"✅ <b>Сессия начата</b>\n"
+        "\n".join(
+            [f"#{i} - ?" for i in range(session.count_requests)]
+        )
+    )
 
 
 @router.message(F.text == "📑Сеансы")
