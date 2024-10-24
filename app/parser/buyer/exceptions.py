@@ -1,0 +1,2 @@
+class TicketBuyFail(BaseException):
+    pass

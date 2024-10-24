@@ -1,6 +1,6 @@
-from redis import Redis
+from abc import ABCMeta
 
-from abc import ABCMeta, abstractmethod
+from redis import Redis
 
 
 class BaseService(metaclass=ABCMeta):

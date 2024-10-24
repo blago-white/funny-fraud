@@ -1,33 +1,13 @@
-from functools import wraps
-
-from aiogram.dispatcher.router import Router
-from aiogram.filters import CommandStart
 from aiogram import F
-from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
-from aiogram.types import ReplyKeyboardRemove
+from aiogram.types import Message
 
+from bot.keyboards import APPROVE_KB, EMPTY_KB
+from bot.states.forms import SessionForm
+from db.services.banking import BotBankingStatusService
 from db.services.sessions import SessionsService, Session
-from ..keyboards import MAIN_MENU_KB, APPROVE_KB
-from ..states.forms import SessionForm
-
-router = Router(name=__name__)
-
-
-def db_service_provider(func):
-    @wraps(func)
-    async def wrapped(*args, **kwargs):
-        service = SessionsService()
-        return await func(*args, **kwargs, service=service)
-
-    return wrapped
-
-
-@router.message(CommandStart())
-async def start(message: Message, state: FSMContext):
-    await state.clear()
-
-    await message.reply(text="🏠Меню Парсера", reply_markup=MAIN_MENU_KB)
+from parser.services import PlatformLeadsService
+from .main import db_service_provider, router, start
 
 
 @router.message(F.text == "🔥Новый Сеанс")
@@ -35,8 +15,9 @@ async def new_session(message: Message, state: FSMContext):
     await state.set_state(state=SessionForm.set_count_complete_requests)
 
     await message.reply(
-        text="Какое колличество полных заявок\n<b>с закупом билета</b>",
-        reply_markup=ReplyKeyboardRemove()
+        text="Какое колличество полных заявок\n<b>с закупом билета</b>"
+             "\n\n<i>во время тестирования игнорируется</i>",
+        reply_markup=EMPTY_KB
     )
 
 
@@ -66,26 +47,6 @@ async def process_ref_link(message: Message, state: FSMContext):
 
     current_session_form = dict(await state.get_data())
     await state.set_data(data=current_session_form | {"ref_link": ref_link})
-    await state.set_state(state=SessionForm.set_bank_number)
-
-    await message.reply(
-        text="Отлично, теперь введи номер телефона от банковского аккаунта:"
-    )
-
-
-@router.message(SessionForm.set_bank_number)
-async def set_phone(message: Message, state: FSMContext):
-    number = message.text.replace(" ", "")
-
-    if len(number) not in (11, 12, 10):
-        await message.reply("Неверный формат номера телефона")
-
-    current_session_form = dict(await state.get_data())
-
-    await state.set_data(
-        data=current_session_form | {"phone_number": number[-10:]}
-    )
-
     await state.set_state(state=SessionForm.approve_session)
 
     await message.reply(
@@ -93,8 +54,7 @@ async def set_phone(message: Message, state: FSMContext):
              f"| Кол-во запросов: "
              f"{current_session_form.get("count_requests")}\n"
              f"| Реф. ссылка: <code>"
-             f"{current_session_form.get("ref_link")}</code>\n"
-             f"| Номер: <code>{number[-10:]}</code>\n",
+             f"{ref_link}</code>\n",
         reply_markup=APPROVE_KB
     )
 
@@ -102,7 +62,8 @@ async def set_phone(message: Message, state: FSMContext):
 @router.message(SessionForm.approve_session)
 @db_service_provider
 async def approve_session(
-        message: Message, state: FSMContext, service: SessionsService):
+        message: Message, state: FSMContext, service: SessionsService
+):
     if message.text != "✅Начать сеанс":
         await message.reply("✅Отменен")
         await state.clear()
@@ -111,19 +72,34 @@ async def approve_session(
     form = dict(await state.get_data())
 
     session = Session.from_dict(
-        dict_=form
+        dict_=form | {"phone_number": BotBankingStatusService().get_number()}
     )
 
-    service.add(passed_session=session)
+    session_id = service.add(passed_session=session)
 
     await state.clear()
 
     replyed = await message.reply(
-        text=f"✅ <b>Сессия начата</b>\n"
-        "\n".join(
-            [f"#{i} - ?" for i in range(session.count_requests)]
-        )
+        text=f"✅<b>Сессия начата, ожидайте, результаты будут ниже</b>\n\n"
+             f"<i>около 5 мин. на лид</i>"
     )
+
+    try:
+        async for gen in PlatformLeadsService().mass_generate(
+            ref_link=session.ref_link,
+            count=int(session.count_requests)
+        ):
+            replyed = await replyed.edit_text(text=replyed.text + "\n" + gen)
+    except BaseException as e:
+        await replyed.edit_text(
+            text="❌ <b>Сессия прервалась с ошибкой</b>\n\n"
+                 f"<code>{e}</code>",
+        )
+    else:
+        service.update_successed_count(session_id=session_id,
+                                       count=session.count_successed)
+
+        await start(message=message, state=state)
 
 
 @router.message(F.text == "📑Сеансы")

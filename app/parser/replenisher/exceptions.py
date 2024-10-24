@@ -1,0 +1,2 @@
+class ReplenishmentError(BaseException):
+    pass

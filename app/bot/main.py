@@ -1,10 +1,9 @@
 import asyncio
 import os
-import redis
 
-from aiogram.dispatcher.dispatcher import Dispatcher
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
+from aiogram.dispatcher.dispatcher import Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 
 from .handlers import messages_router
@@ -26,5 +25,7 @@ async def main(token: str):
     await dp.start_polling(bot)
 
 
-def startup():
-    asyncio.run(main(os.environ.get("TOKEN")))
+async def startup():
+    token = os.environ.get("TOKEN")
+
+    await main(token)

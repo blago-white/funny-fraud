@@ -1,5 +1,6 @@
-from .base import BaseService
 from dataclasses import dataclass
+
+from .base import BaseService
 
 
 @dataclass
@@ -50,7 +51,9 @@ class SessionsService(BaseService):
     def add(self, passed_session: Session):
         count = self.get_count()
 
-        self._conn.append(key=f"sessions:session#{count+1}",
+        id_ = f"sessions:session#{count+1}"
+
+        self._conn.append(key=id_,
                           value=f"{passed_session.count_requests}@"
                                 f"{passed_session.count_successed}@"
                                 f"{passed_session.ref_link}@"
@@ -58,6 +61,17 @@ class SessionsService(BaseService):
                           )
 
         self.increase_count()
+
+        return id_
+
+    def update_successed_count(self, session_id: str, count: int):
+        existed = self._conn.get(session_id)
+
+        new_status = "@".join([existed.split("@")[0],
+                               str(count),
+                               existed.split("@")[2:]])
+
+        self._conn.set(session_id, new_status)
 
     def _init_sessions_counter(self):
         self._conn.append("sessions:count", 0)
