@@ -154,45 +154,6 @@ class PlatformLoginParser:
     def _open_login_form(self, ref_link: str):
         self._driver.get(ref_link)
 
-        try:
-            WebDriverWait(self._driver, 60).until(
-                expected_conditions.presence_of_element_located(
-                    (By.XPATH, "/html/body/div[1]/div[2]/div[2]/div/main/div[1]/div/div[1]/a"),
-                ),
-            )
-
-            login_btn = self._driver.find_element(
-                By.XPATH,
-                "/html/body/div[1]/div[2]/div[2]/div/main/div[1]/div/div[1]/a"
-            )
-
-            self._driver.execute_script(
-                """
-                function getElementByXpath(path) {
-                    return document.evaluate(
-                        path, document, null, 
-                        XPathResult.FIRST_ORDERED_NODE_TYPE, null
-                    ).singleNodeValue;
-                }
-                
-                const loginBtn = getElementByXpath(
-                    "/html/body/div[1]/div[2]/div[2]/div/main/div[1]/div/div[1]/a"
-                )
-                
-                if (loginBtn) {
-                    loginBtn.style.zIndex = 100000;
-                }
-                """
-            )
-
-            login_btn.click()
-        except:
-            self._driver.execute_script(
-                """
-                location.href = "https://www.stoloto.ru/auth";
-                """
-            )
-
         print("LOGIN STARTED")
 
     async def _authenticate_number(self):
