@@ -7,8 +7,6 @@ from .proxies.services import ProxiesService
 
 
 class WebDriversService:
-
-
     def __init__(
             self, default_driver: webdriver.Chrome = webdriver.Chrome,
             default_opts_class: ChromeOptions = ChromeOptions,
@@ -17,10 +15,7 @@ class WebDriversService:
                 platforms=["pc"]
             ),
             proxy_service: ProxiesService = ProxiesService(),
-            driver_path: str = "C:\\Users\\abram\\"
-                               ".cache\\selenium\\chromedriver\\"
-                               "win64\\129.0.6668.100\\"
-                               "chromedriver.exe"):
+            driver_path: str = "C:\\chromedriver.exe"):
         self._default_driver = default_driver
         self._default_opts_class = default_opts_class
         self._agent_service = agent_service

@@ -177,6 +177,8 @@ class PlatformLoginParser:
             self._solve_captcha()
 #             print("CAPTHA PASSED")
         except Exception as e:
+            print(f"ERROROR BLYAT: {e}")
+
 #             print(f"ERROR CAPTCHA {e}")
             if not self._try_click_get_sms_btn(raise_exception=False):
                 await self._sms_service.cancel(activation_id=self._activation_id)
