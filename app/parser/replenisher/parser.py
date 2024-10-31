@@ -18,6 +18,8 @@ class AccountReplenishmentParser:
         self._driver = driver
 
     def get_payment_qr(self, account_phone: str):
+        return
+
         return self._get_qr(phone=self._format_phone(phone=account_phone))
 
     def wait_for_balance(self):

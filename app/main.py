@@ -11,34 +11,32 @@ from db.services.banking import BotBankingStatusService
 from parser.drivers import WebDriversService
 from parser.banking.parser import BaseBankingParser
 from parser.buyer.parser import AccountTicketsService
+from parser.proxies.services import ProxiesService
+from parser.services import PlatformLeadsService
 
 
 async def main():
-    b = AccountTicketsService(
-        driver=await WebDriversService().get()
-    )
+    from bot.main import startup
 
-    for _ in range(10):
-        print(_*10)
-        time.sleep(10)
+    conn = redis.Redis.from_url("redis://localhost:6379/0")
 
-    b.buy()
+    SessionsService(conn=conn)
 
-    # from bot.main import startup
+    BotBankingStatusService(conn=conn)
 
-    # conn = redis.Redis.from_url("redis://localhost:6379/0")
+    BaseBankingParser(driver=await WebDriversService().get())
+
+    await startup()
+
+    # b = AccountTicketsService(
+    #     driver=await WebDriversService().get()
+    # )
     #
-    # SessionsService(conn=conn)
+    # for _ in range(10):
+    #     print(_*10)
+    #     time.sleep(10)
     #
-    # BotBankingStatusService(conn=conn)
-    #
-    # BaseBankingParser(driver=await WebDriversService().get())
-    #
-    # await startup()
-
-
-
-
+    # print(b.get_qr())
 
     # p = BaseBankingParser(owner_phone="9952481751",
     #                       driver=await WebDriversService().get())

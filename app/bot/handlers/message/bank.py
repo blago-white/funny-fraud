@@ -69,7 +69,7 @@ async def enter_otp_bank_code(
             bank.no_password_way()
         except exceptions.CardNumberEnterRequired:
             pass
-    except Exception as e:
+    except (Exception, BaseException) as e:
         await reply.edit_text(f"❌ОШИБКА: {e}")
     else:
         await message.reply("✅Осуществлен быстрый вход по пинкоду!")

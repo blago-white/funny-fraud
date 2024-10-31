@@ -71,9 +71,8 @@ class PlatformLoginParser:
                     """
                 )
 
-                print("AUTHENTICATE NUMBER")
                 await self._authenticate_number()
-                print("SUCCESS END AUTH")
+                # print("SUCCESS END AUTH")
 
                 yield "> ✅ Phone number authenticated"
 
@@ -83,11 +82,11 @@ class PlatformLoginParser:
                     exceptions.BadPhoneNumber,
                     exceptions.AccountExists
                     ) as e:
-                print("EXEPT", e)
+#                 print("EXEPT", e)
 
                 self._driver.execute_script(
-                    """
-                    location.href = "https://www.stoloto.ru/auth";
+                    f"""
+                    location.href = '{ref_link}';
                     """
                 )
                 exceptions_list.append(e)
@@ -97,33 +96,35 @@ class PlatformLoginParser:
                 "\n".join([f"- Error: {e}" for e in exceptions_list])
             )
 
-        for _ in range(3):
+        for _ in range(5):
             try:
                 acc_data = self._enter_account_data()
+                break
             except:
                 self._driver.execute_script(
                     """
                     location.href = location.href;
                     """
                 )
+                time.sleep(10)
         else:
             raise exceptions.ErrorEnteringAccountData(
                 "Error complete account data form"
             )
 
-        yield "> ✅ Account registred"
+        yield f"> ✅ Account registred - {acc_data}"
 
         yield self._activation_id, self._number, acc_data
 
     def _enter_account_data(self):
         WebDriverWait(self._driver, 30).until(
             expected_conditions.presence_of_element_located(
-                (By.XPATH, "/html/body/div[1]/div/div[2]/div/main/div[2]/div[2]/form/div[1]/div/input"),
+                (By.XPATH, "/html/body/div[1]/div[2]/div[2]/div/main/div/div[2]/form/div[2]/div/input"),
             ),
         )
 
         mail_field = self._driver.find_element(
-            By.XPATH, "/html/body/div[1]/div/div[2]/div/main/div[2]/div[2]/form/div[1]/div/input"
+            By.XPATH, "/html/body/div[1]/div[2]/div[2]/div/main/div/div[2]/form/div[2]/div/input"
         )
 
         mail_field.click()
@@ -133,7 +134,7 @@ class PlatformLoginParser:
         mail_field.send_keys(mail)
 
         password_field = self._driver.find_element(
-            By.XPATH, "/html/body/div[1]/div/div[2]/div/main/div[2]/div[2]/form/div[2]/div/input"
+            By.XPATH, "/html/body/div[1]/div[2]/div[2]/div/main/div/div[2]/form/div[3]/div/input"
         )
 
         password_field.click()
@@ -146,7 +147,7 @@ class PlatformLoginParser:
 
         self._driver.find_element(
             By.CSS_SELECTOR,
-            "#__next > div > div.Wrap_wrap__YsCW8.Wrap_wrap__mYUid.PageLayout_wrap__bHTtx > div > main > div > div.Container_container__2bu_W > form > button"
+            "#__next > div.RootLayout_layout__AN70W > div.Wrap_wrap__YsCW8.Wrap_wrap__mYUid.PageLayout_wrap__bHTtx > div > main > div > div.Container_container__2bu_W > form > button"
         ).click()
 
         return f"{mail}:{password}"
@@ -154,7 +155,7 @@ class PlatformLoginParser:
     def _open_login_form(self, ref_link: str):
         self._driver.get(ref_link)
 
-        print("LOGIN STARTED")
+#         print("LOGIN STARTED")
 
     async def _authenticate_number(self):
         WebDriverWait(self._driver, 60).until(
@@ -168,15 +169,15 @@ class PlatformLoginParser:
             self._sms_service.get_number()
         )
 
-        print(f"NUMBER: {self._number}")
+#         print(f"NUMBER: {self._number}")
 
         try:
             self._enter_phone_number()
-            print("PHONE")
+#             print("PHONE")
             self._solve_captcha()
-            print("CAPTHA PASSED")
+#             print("CAPTHA PASSED")
         except Exception as e:
-            print(f"ERROR CAPTCHA {e}")
+#             print(f"ERROR CAPTCHA {e}")
             if not self._try_click_get_sms_btn(raise_exception=False):
                 await self._sms_service.cancel(activation_id=self._activation_id)
                 raise e
@@ -185,12 +186,12 @@ class PlatformLoginParser:
         finally:
             self._driver.switch_to.parent_frame()
 
-        print(f"START RECEIVE: {self._number}")
+#         print(f"START RECEIVE: {self._number}")
 
         try:
             code = await self._receive_code()
         except exceptions.ForceLogin:
-            print("FORCED!!!")
+#             print("FORCED!!!")
             return
 
         self._enter_code(code=code)
@@ -249,6 +250,8 @@ class PlatformLoginParser:
         START_RECEIVING = time.time()
 
         while not code:
+            self._try_click_get_sms_btn()
+
             if (time.time() - START_RECEIVING) > 60*1.5:
                 await self._sms_service.cancel(activation_id=self._activation_id)
                 raise exceptions.BadPhoneNumber("Not receive sms code")
@@ -257,7 +260,7 @@ class PlatformLoginParser:
                 activate_id=self._activation_id
             )
 
-            print(f"CODE: {code}")
+#             print(f"CODE: {code}")
 
             time.sleep(1)
 
@@ -278,6 +281,10 @@ class PlatformLoginParser:
     @property
     def account_exists(self):
         return "Введите пароль для входа" in self._get_title()
+
+    @property
+    def no_sms_started(self):
+        return "Войти или зарегистрироваться" in self._get_title()
 
     def _get_title(self):
         try:

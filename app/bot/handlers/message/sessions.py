@@ -47,14 +47,45 @@ async def process_ref_link(message: Message, state: FSMContext):
 
     current_session_form = dict(await state.get_data())
     await state.set_data(data=current_session_form | {"ref_link": ref_link})
-    await state.set_state(state=SessionForm.approve_session)
+    await state.set_state(state=SessionForm.set_proxy)
+
+    await message.reply(
+        text="<b>Последний шаг.</b> Введите список прокси"
+             "Формат: <i>login1:password1@host1:port1 "
+             "login2:password2@host2:port2</i>"
+    )
+
+
+@router.message(SessionForm.set_proxy)
+async def set_proxyies(message: Message, state: FSMContext):
+    if not message.text.split():
+        await message.reply(text="❌Прокси не добавлены либо неверный формат")
+        return
+
+    proxy_list = message.text.split()
+    count_requests = int((await state.get_data()).get("count_requests"))
+    
+    if len(proxy_list) != count_requests:
+        await message.reply(text="❌Неверное кол-во прокси:\n"
+                                 f"Получено: {len(proxy_list)}\n"
+                                 f"Нужно: {count_requests}")
+        return
+
+    await state.set_data(data=dict(await state.get_data()) | {
+        "proxy": message.text
+    })
+
+    current_session_form = dict(await state.get_data())
+
+    await state.set_state(SessionForm.approve_session)
 
     await message.reply(
         text="✅ Отлично, форма заполнена!\n"
              f"| Кол-во запросов: "
              f"{current_session_form.get("count_requests")}\n"
              f"| Реф. ссылка: <code>"
-             f"{ref_link}</code>\n",
+             f"{current_session_form.get("ref_link")}</code>\n"
+             f"| Прокси добавлены",
         reply_markup=APPROVE_KB
     )
 
@@ -75,6 +106,8 @@ async def approve_session(
         dict_=form | {"phone_number": BotBankingStatusService().get_number()}
     )
 
+    proxy_list = form.get("proxy").split()
+
     session_id = service.add(passed_session=session)
 
     await state.clear()
@@ -85,11 +118,27 @@ async def approve_session(
     )
 
     try:
-        async for gen in PlatformLeadsService().mass_generate(
+        results = PlatformLeadsService().mass_generate(
             ref_link=session.ref_link,
-            count=int(session.count_requests)
-        ):
-            replyed = await replyed.edit_text(text=replyed.text + "\n" + gen)
+            count=int(session.count_requests),
+            proxy=proxy_list
+        )
+
+        print(results)
+
+        await message.bot.send_message(
+            chat_id=message.chat.id,
+            text="Results:\n"
+                 "\n".join([
+                f"{'✅' if i[0] else '❌'}-{i[1]}-{i[2]}" for i in results
+            ])
+        )
+        # async for gen in PlatformLeadsService().mass_generate(
+        #     ref_link=session.ref_link,
+        #     count=int(session.count_requests),
+        #     proxy=proxy_list
+        # ):
+        #     replyed = await replyed.edit_text(text=replyed.text + "\n" + gen)
     except BaseException as e:
         await replyed.edit_text(
             text="❌ <b>Сессия прервалась с ошибкой</b>\n\n"

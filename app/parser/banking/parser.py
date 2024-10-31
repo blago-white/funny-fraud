@@ -98,17 +98,23 @@ class BaseBankingParser:
         while time.time() - START_COMMIT_TIME < 30:
             if self.current_auth_step:
                 if self.current_auth_step == _steps.EnterCardNumber:
+                    print("CARD NUM ENT")
                     raise exceptions.CardNumberEnterRequired
                 elif self.current_auth_step == _steps.EnterPassword:
+                    print("PASS ENT REQ")
                     raise exceptions.PasswordEnterRequired
                 elif self.current_auth_step == _steps.EnterOtp:
+                    print("REENTER OTP")
                     raise exceptions.ReEnterOtp
                 elif self.current_auth_step == _steps.CreatePin:
+                    print("CREATE PIN")
                     self._set_pin_code()
 
                     if self.current_auth_step is False:
+                        print("SUCCESS")
                         return
 
+        print("ERROR AUTH")
         raise exceptions.AuthError
 
     def new_otp_code(self):

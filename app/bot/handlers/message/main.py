@@ -37,7 +37,8 @@ async def start(message: Message, state: FSMContext, bank: BaseBankingParser):
     await state.clear()
 
     reply = await message.reply(
-        text=f"🔄<b>Обновление...</b>", reply_markup=MAIN_MENU_KB
+        text=f"🔄<b>Обновление...</b>\n<i>Ожидайте</i>",
+        reply_markup=MAIN_MENU_KB
     )
 
     await _update_status(bank=bank)

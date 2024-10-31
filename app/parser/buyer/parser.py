@@ -1,5 +1,7 @@
 import time
 
+from pathlib import Path
+
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
@@ -9,13 +11,15 @@ from . import exceptions
 
 
 class AccountTicketsService:
+    _qr_path = ""
+
     def __init__(self, driver: Chrome,
-                 ticket_path: str = "https://www.stoloto.ru/rapido-drive/game?int=left"):
+                 ticket_path: str = "https://www.stoloto.ru/zabava/game?int=left"):
         self._ticket_path = ticket_path
         self._driver = driver
 
-    def buy(self):
-        for _ in range(3):
+    def get_qr(self) -> str:
+        for _ in range(5):
             self._driver.get(self._ticket_path)
 
             print("OPENING")
@@ -23,45 +27,111 @@ class AccountTicketsService:
             try:
                 print("WAIT")
 
-                self._driver.execute_script(
-                    """                    
-                    document.querySelectorAll(
-                        '[data-test-id="randombtn"]'
-                    )[0].id = "randomTargetBtn";
+                WebDriverWait(self._driver, 60).until(
+                    expected_conditions.presence_of_element_located(
+                        (By.CLASS_NAME,
+                        'ButtonRandom_btnRandom__q7SkB')
+                    )
+                )
 
-                    document.getElementById('randomTargetBtn').style.transform = "scale(10)";
+                self._driver.execute_script(
+                    """                 
+                    
+                    const elem = document.querySelectorAll('[data-test-id="randombtn"]')[0]
+                    
+                    elem.id = "randomTargetBtn";
+                    
+                    document.getElementById(
+                        'randomTargetBtn'
+                    ).style.transform = "scale(1.1)";
 
                     document.getElementById('randomTargetBtn').style.zIndex = 100000;
+                    
+                    document.getElementById(
+                        'randomTargetBtn'
+                    ).style.position = 'absolute';
+                    
+                    const overlay = document.getElementById('layers');
+                    
+                    if (overlay) {
+                        overlay.style.display = 'none'
+                    }
                     """
                 )
 
                 print("FIND")
-                self._driver.find_element(
+                rand_btn = self._driver.find_element(
                     By.ID, "randomTargetBtn"
-                ).click()
+                )
+                print(f"FIND {rand_btn}")
+
+                try:
+                    rand_btn.click()
+                except:
+                    WebDriverWait(self._driver, 20).until(
+                        expected_conditions.presence_of_element_located(
+                            (By.ID, 'layers')
+                        )
+                    )
+
+                    self._driver.execute_script("""
+                        const overlay = document.getElementById('layers');
+                        
+                        if (overlay) {
+                            overlay.style.display = 'none'
+                        }
+                    """)
+
+                    rand_btn.click()
+
                 print("CLICK")
-                break
+
+                print("FIND2")
+                WebDriverWait(self._driver, 60).until(
+                    expected_conditions.element_to_be_clickable(
+                        (By.XPATH,
+                         "/html/body/div[1]/div[2]/div[2]/div/main/div[2]/div[3]/aside/div/div[2]/div/div[5]/div/button[1]")
+
+                    )
+                )
+
+                self._driver.find_element(
+                    By.XPATH,
+                         "/html/body/div[1]/div[2]/div[2]/div/main/div[2]/div[3]/aside/div/div[2]/div/div[5]/div/button[1]"
+                ).click()
+
+                WebDriverWait(self._driver, 60).until(
+                    expected_conditions.presence_of_element_located(
+                        (By.CSS_SELECTOR,
+                         "body > aside > div > div > div.Sbp_content__uNOOd > img")
+
+                    )
+                )
+
+                print("QR")
+
+                return self._make_screenshot(elem=self._driver.find_element(
+                    By.CSS_SELECTOR,
+                    "body > aside > div > div > div.Sbp_content__uNOOd > img"
+                ))
             except Exception as e:
                 print("ERROR", e)
-                time.sleep(60)
                 pass
-                # //*[@id="__next"]/div/div[2]/div/main/div[2]/div[2]/div/div/div[2]/div/div/div[2]/button
         else:
-            # /html/body/div[1]/div/div[2]/div/main/div[2]/div[2]/div/div/div[2]/div/div/div[2]/button
             raise exceptions.TicketBuyFail
 
-        print("FIND2")
-        WebDriverWait(self._driver, 60).until(
-            expected_conditions.element_to_be_clickable(
-                (By.CSS_SELECTOR,
-                 "#__next > div.RootLayout_layout__AN70W > "
-                 "div.Wrap_wrap__YsCW8.Wrap_wrap__mYUid.PageLayout_wrap__bHTtx > div > main > div.Game_game__rLn16 > div.GameContentContainer_gameContentContainer__T_6t1 > aside > div > div.SidebarContainer_sidebarContainer__tw5FC.SidebarContainer_checkout__tIFrB > div > div.Checkout_checkoutActions__L137d > div > button.Button_button__aXkCB.Button_fluid__2K933.Button_defaultSize__1RE37.ButtonGame_robotoFlex___PuFe.ButtonGame_gameBtn__WoYPN.ButtonGame_primary__hoaO2.Purchase_paymentBtn__zXkpz.Purchase_purchase__QEgWe")
+    def _make_screenshot(self, elem):
+        print(self._generate_qr_path())
 
-            )
-        )
+        elem.screenshot(self._qr_path)
 
-        self._driver.find_element(
-            By.CSS_SELECTOR,
-                 "#__next > div.RootLayout_layout__AN70W > "
-                 "div.Wrap_wrap__YsCW8.Wrap_wrap__mYUid.PageLayout_wrap__bHTtx > div > main > div.Game_game__rLn16 > div.GameContentContainer_gameContentContainer__T_6t1 > aside > div > div.SidebarContainer_sidebarContainer__tw5FC.SidebarContainer_checkout__tIFrB > div > div.Checkout_checkoutActions__L137d > div > button.Button_button__aXkCB.Button_fluid__2K933.Button_defaultSize__1RE37.ButtonGame_robotoFlex___PuFe.ButtonGame_gameBtn__WoYPN.ButtonGame_primary__hoaO2.Purchase_paymentBtn__zXkpz.Purchase_purchase__QEgWe"
-        ).click()
+        return self._qr_path
+
+    def _generate_qr_path(self):
+        if not self._qr_path:
+            self._qr_path = str((
+                Path(__file__).parent.parent.parent /
+                f"static/qr-{time.time()}.png"
+            ).absolute())
+
+        return self._qr_path

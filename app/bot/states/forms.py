@@ -4,6 +4,7 @@ from aiogram.fsm.state import StatesGroup, State
 class SessionForm(StatesGroup):
     set_count_complete_requests = State()
     set_ref_link = State()
+    set_proxy = State()
     approve_session = State()
 
 
