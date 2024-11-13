@@ -155,7 +155,7 @@ class PlatformLoginParser:
     def _open_login_form(self, ref_link: str):
         self._driver.get(ref_link)
 
-#         print("LOGIN STARTED")
+        print("LOGIN STARTED")
 
     async def _authenticate_number(self):
         WebDriverWait(self._driver, 60).until(
@@ -169,13 +169,13 @@ class PlatformLoginParser:
             self._sms_service.get_number()
         )
 
-#         print(f"NUMBER: {self._number}")
+        print(f"NUMBER: {self._number}")
 
         try:
             self._enter_phone_number()
-#             print("PHONE")
+            print("PHONE")
             self._solve_captcha()
-#             print("CAPTHA PASSED")
+            print("CAPTHA PASSED")
         except Exception as e:
             print(f"ERROROR BLYAT: {e}")
 
@@ -188,12 +188,12 @@ class PlatformLoginParser:
         finally:
             self._driver.switch_to.parent_frame()
 
-#         print(f"START RECEIVE: {self._number}")
+        print(f"START RECEIVE: {self._number}")
 
         try:
             code = await self._receive_code()
         except exceptions.ForceLogin:
-#             print("FORCED!!!")
+            print("FORCED!!!")
             return
 
         self._enter_code(code=code)
@@ -261,8 +261,8 @@ class PlatformLoginParser:
             code = await self._sms_service.get_status(
                 activate_id=self._activation_id
             )
-
-#             print(f"CODE: {code}")
+ 
+            print(f"CODE: {code}")
 
             time.sleep(1)
 

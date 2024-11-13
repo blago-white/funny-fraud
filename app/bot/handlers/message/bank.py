@@ -73,6 +73,7 @@ async def enter_otp_bank_code(
         await reply.edit_text(f"❌ОШИБКА: {e}")
     else:
         await message.reply("✅Осуществлен быстрый вход по пинкоду!")
+        return await state.clear()
 
     await message.reply("💳Введите номер любой карты т-банка без пробелов")
 

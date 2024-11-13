@@ -76,7 +76,10 @@ class BaseBankingParser:
                 By.ID, "form-title"
             ).text
         except:
+            print("NOT FOUND AUTH STEP")
             return False
+
+        print(f"AUTH STEP - {title}")
 
         return _steps.get_by_title(
             title=title
@@ -93,10 +96,12 @@ class BaseBankingParser:
 
         self._enter_otp_code(code=code)
 
+        time.sleep(10)
         START_COMMIT_TIME = time.time()
 
         while time.time() - START_COMMIT_TIME < 30:
             if self.current_auth_step:
+                print(self.current_auth_step)
                 if self.current_auth_step == _steps.EnterCardNumber:
                     print("CARD NUM ENT")
                     raise exceptions.CardNumberEnterRequired
@@ -114,8 +119,8 @@ class BaseBankingParser:
                         print("SUCCESS")
                         return
 
-        print("ERROR AUTH")
-        raise exceptions.AuthError
+        print("PASSED")
+        return
 
     def new_otp_code(self):
         WebDriverWait(self._driver, 60).until(
@@ -321,6 +326,8 @@ class BaseBankingParser:
 
         otp_field.send_keys(code)
 
+        print("ENTERED OTP")
+
     def _open_login_form(self):
         self._driver.get("https://tbank.ru/auth/login/")
 
@@ -343,3 +350,5 @@ class BaseBankingParser:
             By.CSS_SELECTOR,
             "#submit-form > div > div > div > button"
         ).click()
+
+        print("STARTED LOGIN")

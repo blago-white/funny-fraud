@@ -57,6 +57,8 @@ class WebDriversService:
             }
         )
 
+        print(f"PROXY: {proxy}")
+
         driver.execute_cdp_cmd('Network.setUserAgentOverride',
                                {"userAgent": agent})
 
