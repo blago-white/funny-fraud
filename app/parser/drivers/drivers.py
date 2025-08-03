@@ -15,7 +15,7 @@ class WebDriversService:
                 platforms=["pc"]
             ),
             proxy_service: ProxiesService = ProxiesService(),
-            driver_path: str = "C:\\chromedriver.exe"):
+            driver_path: str = "D:\\FDISKCOPY\\python\\stoloto\\chrome\\chromedriver-win64\\chromedriver.exe"):
         self._default_driver = default_driver
         self._default_opts_class = default_opts_class
         self._agent_service = agent_service

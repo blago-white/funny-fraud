@@ -26,6 +26,6 @@ async def main(token: str):
 
 
 async def startup():
-    token = os.environ.get("TOKEN")
+    token = os.environ.get("BOT_TOKEN")
 
     await main(token)
