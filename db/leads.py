@@ -2,7 +2,8 @@ import random
 import time
 
 from .base import DefaulConcurrentRepository
-from .transfer import LeadGenResult, LeadGenResultStatus, STATUS_MAPPING
+from .transfer import LeadGenResult, LeadGenResultStatus, STATUS_MAPPING, \
+    AccountCredentials
 from ._utils import code_is_blocking
 
 
@@ -59,10 +60,12 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
             lead_id=int(l.split("@")[0]),
             status=STATUS_MAPPING.get(l.split("@")[1],
                                       LeadGenResultStatus.FAILED),
-            sms_code=l.split("@")[2],
             error=l.split("@")[3],
             ref_link=l.split("@")[4],
-            proxy=l.split("@")[5]
+            proxy=l.split("@")[5],
+            credentials=AccountCredentials.get_deserialized(
+                l.split("@")[6]
+            ),
         ) for l in leads]
 
         return [l for l in session_leads
@@ -86,7 +89,8 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
                                  f"{result.sms_code}@"
                                  f"{result.error}@"
                                  f"{result.ref_link}@"
-                                 f"{result.proxy}&"
+                                 f"{result.proxy}@"
+                                 f"{str(result.credentials)}&"
                            )
 
             return id_, 0
@@ -100,7 +104,8 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
                            f"{result.sms_code}@"
                            f"{result.error}@"
                            f"{result.ref_link}@"
-                           f"{result.proxy}"
+                           f"{result.proxy}@"
+                           f"{str(result.credentials)}"
                        ])
                        )
 
@@ -138,26 +143,6 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
                                    sms_code=sms_code,
                                    error=error)
 
-    @DefaulConcurrentRepository.locked()
-    def can_start_wait_code(self, session_id: int, lead_id: int) -> bool:
-        return self._change_status(status=LeadGenResultStatus.WAIT_CODE,
-                                   session_id=session_id,
-                                   lead_id=lead_id)
-
-    @DefaulConcurrentRepository.locked(only_session_id=True)
-    def drop_waiting_lead(self, session_id: int):
-        self._update_main_lead_status(
-            session_id=session_id,
-            status=LeadGenResultStatus.FAILED
-        )
-
-    @DefaulConcurrentRepository.locked(only_session_id=True)
-    def force_new_sms(self, session_id: int):
-        self._update_main_lead_status(
-            session_id=session_id,
-            status=LeadGenResultStatus.RESEND_CODE
-        )
-
     @DefaulConcurrentRepository.locked(only_session_id=True)
     def drop_session(self, session_id: int):
         results = []
@@ -174,64 +159,6 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
 
         return all(results)
 
-    @DefaulConcurrentRepository.locked(only_session_id=True)
-    def set_paid(self, session_id: int):
-        leads = self.get(session_id=session_id)
-
-        code_entered_lead = [
-            l for l in leads if
-            l.status == LeadGenResultStatus.CODE_RECEIVED
-        ]
-
-        if code_entered_lead:
-            code_entered_lead = code_entered_lead[0]
-        else:
-            return False
-
-        self._change_status(
-            status=LeadGenResultStatus.SUCCESS,
-            session_id=session_id,
-            lead_id=code_entered_lead.lead_id
-        )
-
-    @DefaulConcurrentRepository.locked(only_session_id=True)
-    def send_sms_code(self, session_id: int, sms_code: str):
-        leads = self.get(session_id=session_id)
-
-        waiting_lead = [
-            l for l in leads if code_is_blocking(l.status)
-        ]
-
-        if waiting_lead:
-            waiting_lead = waiting_lead[0]
-        else:
-            return False
-
-        self._change_status(
-            status=LeadGenResultStatus.CODE_RECEIVED,
-            session_id=session_id,
-            lead_id=waiting_lead.lead_id,
-            sms_code=sms_code
-        )
-
-    def _update_main_lead_status(
-            self, session_id: int,
-            status: LeadGenResultStatus):
-        leads = self.get(session_id=session_id)
-
-        waiting_lead = [l for l in leads if code_is_blocking(status=l.status)]
-
-        if waiting_lead:
-            waiting_lead = waiting_lead[0]
-        else:
-            return False
-
-        return self._change_status(
-            status=status,
-            session_id=session_id,
-            lead_id=waiting_lead.lead_id
-        )
-
     def _change_status(
             self, session_id: int,
             lead_id: int,
@@ -241,11 +168,6 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
         session = self.get(session_id=session_id)
 
         if not session:
-            return False
-
-        if any([code_is_blocking(l.status)
-                for l in session
-                if l.lead_id != lead_id]):
             return False
 
         id_ = f"sessions:session#{session_id}"
@@ -265,11 +187,11 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
                                 f"{sms_code or result.sms_code}@"
                                 f"{error or result.error}@"
                                 f"{result.ref_link}@"
-                                f"{result.proxy}")
+                                f"{result.proxy}@",
+                                f"{str(result.credentials)}")
                 break
 
-        self._conn.set(name=id_,
-                       value="&".join(exists))
+        self._conn.set(name=id_, value="&".join(exists))
 
         return session_id
 

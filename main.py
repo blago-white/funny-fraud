@@ -1,27 +1,31 @@
 import asyncio
+import os
 
 import dotenv
-import redis
 
 dotenv.load_dotenv()
 
-from db.services.sessions import SessionsService
-from db.services.banking import BotBankingStatusService
-from parser.drivers import WebDriversService
-from parser.banking.parser import BaseBankingParser
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+
+from bot.handlers import main_router
 
 
 async def main():
-    from bot.main import startup
+    dp = Dispatcher()
 
-    conn = redis.Redis.from_url("redis://localhost:6379/0")  # TODO: Make os env param
+    bot = Bot(
+        token=os.environ.get("BOT_TOKEN"),
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.HTML
+        )
+    )
 
-    await startup()
+    dp.include_routers(main_router)
+
+    await dp.start_polling(bot)
 
 
-def repl_task():
+if __name__ == '__main__':
     asyncio.run(main())
-
-
-if __name__ == "__main__":
-    repl_task()
