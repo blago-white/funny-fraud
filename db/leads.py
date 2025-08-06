@@ -4,7 +4,6 @@ import time
 from .base import DefaulConcurrentRepository
 from .transfer import LeadGenResult, LeadGenResultStatus, STATUS_MAPPING, \
     AccountCredentials
-from ._utils import code_is_blocking
 
 
 class LeadGenerationResultsService(DefaulConcurrentRepository):
@@ -57,14 +56,13 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
 
         session_leads = [LeadGenResult(
             session_id=session_id,
-            lead_id=int(l.split("@")[0]),
-            status=STATUS_MAPPING.get(l.split("@")[1],
-                                      LeadGenResultStatus.FAILED),
-            error=l.split("@")[3],
-            ref_link=l.split("@")[4],
-            proxy=l.split("@")[5],
+            lead_id=int(l.split("*")[0]),
+            status=STATUS_MAPPING.get(l.split("*")[1], LeadGenResultStatus.FAILED),
+            error=l.split("*")[2],
+            ref_link=l.split("*")[3],
+            proxy=l.split("*")[4],
             credentials=AccountCredentials.get_deserialized(
-                l.split("@")[6]
+                l.split("*")[5]
             ),
         ) for l in leads]
 
@@ -84,12 +82,11 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
 
         if not exists:
             self._conn.set(name=id_,
-                           value=f"0@"
-                                 f"{result.status}@"
-                                 f"{result.sms_code}@"
-                                 f"{result.error}@"
-                                 f"{result.ref_link}@"
-                                 f"{result.proxy}@"
+                           value=f"0*"
+                                 f"{result.status}*"
+                                 f"{result.error}*"
+                                 f"{result.ref_link}*"
+                                 f"{result.proxy}*"
                                  f"{str(result.credentials)}&"
                            )
 
@@ -97,14 +94,15 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
 
         exists = [i for i in exists.split("&") if len(i) > 2]
 
+        print("SAVED", result.credentials)
+
         self._conn.set(name=id_,
                        value="&".join(exists + [
-                           f"{len(exists)}@"
-                           f"{result.status}@"
-                           f"{result.sms_code}@"
-                           f"{result.error}@"
-                           f"{result.ref_link}@"
-                           f"{result.proxy}@"
+                           f"{len(exists)}*"
+                           f"{result.status}*"
+                           f"{result.error}*"
+                           f"{result.ref_link}*"
+                           f"{result.proxy}*"
                            f"{str(result.credentials)}"
                        ])
                        )
@@ -135,12 +133,10 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
             self, session_id: int,
             lead_id: int,
             status: str,
-            sms_code: str = None,
             error: str = None):
         return self._change_status(session_id=session_id,
                                    lead_id=lead_id,
                                    status=status,
-                                   sms_code=sms_code,
                                    error=error)
 
     @DefaulConcurrentRepository.locked(only_session_id=True)
@@ -163,7 +159,6 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
             self, session_id: int,
             lead_id: int,
             status: str,
-            sms_code: str = None,
             error: str = None):
         session = self.get(session_id=session_id)
 
@@ -180,14 +175,13 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
             return
 
         for i_id, i in enumerate(exists):
-            lead_id_raw = i.split("@")[0]
+            lead_id_raw = i.split("*")[0]
 
             if lead_id_raw.isdigit() and int(lead_id_raw) == int(lead_id):
-                exists[i_id] = (f"{lead_id}@{status}@"
-                                f"{sms_code or result.sms_code}@"
-                                f"{error or result.error}@"
-                                f"{result.ref_link}@"
-                                f"{result.proxy}@",
+                exists[i_id] = (f"{lead_id}*{status}*"
+                                f"{error or result.error}*"
+                                f"{result.ref_link}*"
+                                f"{result.proxy}*",
                                 f"{str(result.credentials)}")
                 break
 

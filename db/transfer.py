@@ -59,14 +59,14 @@ class AccountCredentials:
 
     @classmethod
     def get_deserialized(cls, serialized: str, separated: bool = False):
-        if separated:
-            deserialized = serialized.split("ac")[1]
-            return AccountCredentials(
-                number=int(deserialized.split("|")[0]),
-                mail_credentials=AccountMailCredentials.get_deserialised(
-                    deserialized.split("|")[-1]
-                ),
-            )
+        deserialized = serialized.split("ac")[1]
+
+        return AccountCredentials(
+            number=int(deserialized.split("|")[0]),
+            mail_credentials=AccountMailCredentials.get_deserialised(
+                deserialized.split("|")[-1]
+            ),
+        )
 
 
 @dataclass
@@ -81,7 +81,9 @@ class LeadGenResult:
     ref_link: str | None = None
 
     def __post_init__(self):
-        if type(self.credentials) is not AccountCredentials:
+        print(self.credentials, type(self.credentials))
+
+        if (type(self.credentials) is not AccountCredentials) and self.credentials:
             self.credentials = AccountCredentials(
                 mail_credentials=AccountMailCredentials(
                     addr=self.credentials[0][0],
