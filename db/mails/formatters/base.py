@@ -7,6 +7,5 @@ class BaseMailCredentialsFormatter(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    @property
     def formated(self):
         pass

@@ -7,7 +7,25 @@ class SessionForm(StatesGroup):
     approve_session = State()
 
 
-class BankAccountLogin(StatesGroup):
-    enter_phone = State()
-    enter_otp = State()
-    enter_card = State()
+class GologinApikeySettingForm(StatesGroup):
+    wait_apikey = State()
+
+
+class SmsServiceApikeySettingForm(StatesGroup):
+    wait_apikey = State()
+
+
+class ProxySettingForm(StatesGroup):
+    wait_base_proxy = State()
+
+
+class DonationPhoneSettingForm(StatesGroup):
+    wait_phone = State()
+
+
+class MailCredentialsSettingForm(StatesGroup):
+    wait_emails = State()
+
+
+class CaptchaSettingForm(StatesGroup):
+    wait_apikey = State()

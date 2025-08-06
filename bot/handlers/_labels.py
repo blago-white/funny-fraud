@@ -1,7 +1,7 @@
 MAIN_MESSAGE = """
 🏠 Меню Парсера <b>Столото</b>
 
-🤖 Gologin apikey: ✅<i>{golog}</i> [кол-во: {golog_count}]
+🤖 Gologin apikey: <i>{golog}</i> [кол-во: {golog_count}]
 
 ☎️ Смс-Сервисы:
 — El-Sms apikey: {elsms}

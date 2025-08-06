@@ -81,8 +81,6 @@ class LeadGenResult:
     ref_link: str | None = None
 
     def __post_init__(self):
-        print(self.credentials, type(self.credentials))
-
         if (type(self.credentials) is not AccountCredentials) and self.credentials:
             self.credentials = AccountCredentials(
                 mail_credentials=AccountMailCredentials(

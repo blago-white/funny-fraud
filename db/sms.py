@@ -1,4 +1,4 @@
-from base import D
+from .base import DefaultApikeyRedisRepository
 
 
 class ElSmsServiceApikeyRepository(DefaultApikeyRedisRepository):

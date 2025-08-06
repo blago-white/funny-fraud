@@ -9,7 +9,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from bot.handlers import main_router
+from bot.handlers.message import ROUTERS
 
 
 async def main():
@@ -22,7 +22,7 @@ async def main():
         )
     )
 
-    dp.include_routers(main_router)
+    dp.include_routers(*ROUTERS)
 
     await dp.start_polling(bot)
 

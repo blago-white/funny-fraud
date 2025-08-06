@@ -2,9 +2,9 @@ import json
 from json import JSONEncoder
 from pathlib import Path
 
-from .base import SimpleConcurrentRepository
+from ..base import SimpleConcurrentRepository
 from .exceptions import MailCredentialsValidationError, MailCredentialsEndedError
-from .transfer import AccountMailCredentials
+from ..transfer import AccountMailCredentials
 
 from .formatters.base import BaseMailCredentialsFormatter
 from .formatters.hstock1 import HStockFormatter
@@ -17,7 +17,12 @@ class MailCredsRepository(SimpleConcurrentRepository):
     _current: AccountMailCredentials = None
     _default_formatter: BaseMailCredentialsFormatter = HStockFormatter
 
-    _STORAGE_FILE_PATH: str = Path(__file__).parent.parent / "data\\mails.json"
+    _STORAGE_FILE_PATH: str = Path(__file__).parent.parent.parent / "data\\mails.json"
+
+    def __init__(self, *args, **kwargs):
+        self._current = self._get_last_credential()
+
+        super().__init__(*args, **kwargs)
 
     @property
     @lock()
@@ -40,7 +45,7 @@ class MailCredsRepository(SimpleConcurrentRepository):
 
         print(f"RETRIEVE NEXT MAIL CREDENTIALS: {new_current_credentials}")
 
-        return proxy
+        return new_current_credentials
 
     @SimpleConcurrentRepository.locked()
     def add(self, data_set: str):
@@ -49,6 +54,20 @@ class MailCredsRepository(SimpleConcurrentRepository):
         last_credential = self._save_new_credentials(credentials=formatted)
 
         return last_credential
+
+    def get_mail_storage_params(self):
+        return self._get_last_credential(), self._get_count_credentials()
+
+    def _get_count_credentials(self):
+        with open(self._STORAGE_FILE_PATH) as file:
+            return len(json.load(file))
+
+    def _get_last_credential(self):
+        with open(self._STORAGE_FILE_PATH) as file:
+            try:
+                return json.load(file)[0]
+            except:
+                return None
 
     def _update_current_credential(self):
         self._current = self._drop_last_credential()
@@ -65,18 +84,26 @@ class MailCredsRepository(SimpleConcurrentRepository):
         if not credentials:
             return
 
-        new_current_credentials = credentials[1]
+        print("PREVIOUS_CRED", credentials)
+
+        new_current_credentials = credentials[0]
 
         with open(self._STORAGE_FILE_PATH, "w") as file:
             json.dump(credentials[1:], file)
 
+        print("PAST_CRED", credentials[1:])
+
         return new_current_credentials
 
     def _save_new_credentials(self, credentials: dict):
+        print("START", credentials)
+
         with open(self._STORAGE_FILE_PATH, "w") as file:
             json.dump(credentials, file)
 
         with open(self._STORAGE_FILE_PATH) as file:
             credentials = json.load(file)
+
+        print("END", credentials)
 
         return credentials[0]
