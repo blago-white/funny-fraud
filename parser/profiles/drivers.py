@@ -25,7 +25,7 @@ class WebDriversService:
 
     @property
     def gologin_manager(self) -> GologinProfilesManager:
-        return self._gologin_manager()
+        return self._gologin_manager
 
     def get_desctop(self, worker_id: str, proxy: str = None) -> tuple[str, Chrome]:
         return self.get(
@@ -70,14 +70,14 @@ class WebDriversService:
         )
 
     def _get_agent(self) -> str:
-        return self._agent_service.random
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.7151.55 Safari/537.36"
 
     def _get_opts(
             self, agent: str,
             headless: bool = True):
         opts = self._default_opts_class()
 
-        opts.add_argument("--window-size=2200,1000")
+        opts.add_argument("--window-size=3500,1000")
 
         if headless:
             opts.add_argument("--headless")
