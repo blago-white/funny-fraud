@@ -31,8 +31,6 @@ def _delete_captcha_img(path: str):
 class StolotoTicketsParser:
     _captcha_solver: BaseCaptchaSolverAPIAdapter
 
-    _form_already_inited: bool = False
-
     _AFTER_ENTERING_PHONE_PAGE_URLS = ["https://www.stoloto.ru/auth/login?from=reg_phone", "https://www.stoloto.ru/auth/registration-push-sms?from=reg_phone"]
     _START_LOGINING_PAGE_URL = "https://www.stoloto.ru/auth"
     _CAPTCHA_SCREENSHOTS_PATH_TEMP = "D:\\FDISKCOPY\\python\\stoloto\\screenshot-{r}.png"
@@ -51,13 +49,13 @@ class StolotoTicketsParser:
         self._captcha_solver = captcha_solver_adapter()
 
     def open_registration_form(self, url: str):
-        self._driver.fullscreen_window()
+        self._driver.maximize_window()
 
         self._driver.get(url=url)
 
         print("CLICK START REGISTER BUTTON")
 
-        self._driver.fullscreen_window()
+        self._driver.maximize_window()
 
         self._click_start_register_button()
 
@@ -66,8 +64,6 @@ class StolotoTicketsParser:
         self._check_login_form_loaded()
 
         print("CHECKED LOGIN FORM")
-
-        self._form_already_inited = True
 
     def register_phone(self, phone: str):
         print("START ENTERING PHONE")
@@ -102,9 +98,7 @@ class StolotoTicketsParser:
         if "возникла техническая ошибка. пожалуйста, попробуйте позже" in self._driver.page_source.lower():
             self._driver.back()
 
-            time.sleep(10)
-
-            self._wait_for_element(By.ID, "otp-1")
+            self._wait_for_element(By.ID, "otp-1", 45)
 
             try:
                 self._driver.find_element(By.ID, "otp-1")
@@ -114,13 +108,13 @@ class StolotoTicketsParser:
             return self.enter_reg_sms_code(code=code, _recursion_n=_recursion_n+1)
 
         try:
-            self._wait_for_main_header_change(text_in="Регистрация")
+            self._check_main_header_contains(text_in="Регистрация")
         except:
             return self.enter_reg_sms_code(code=code, _recursion_n=_recursion_n+1)
 
     def continue_registration(self, mail: AccountMailCredentials):
         try:
-            self._wait_for_main_header_change(text_in="Регистрация")
+            self._check_main_header_contains(text_in="Регистрация")
         except:
             raise Exception("Cannot register!")
 
@@ -174,6 +168,12 @@ class StolotoTicketsParser:
         if "не удалось подтвердить номер" in self._driver.page_source.lower():
             raise Exception("Number blocked!")
 
+    def drop_reg_form(self):
+        if self._driver.current_url == self._START_LOGINING_PAGE_URL:
+            return
+
+        self._driver.back()
+
     def _submit_reg_phone_form(self):
         self._driver.find_element(
             By.CSS_SELECTOR, 'button[type="submit"]'
@@ -181,11 +181,7 @@ class StolotoTicketsParser:
 
         for _ in range(20):
             try:
-                WebDriverWait(self._driver, 6).until(
-                    expected_conditions.presence_of_element_located(
-                        (By.ID, "otp-1")
-                    )
-                )
+                self._wait_for_element(By.ID, "otp-1", 6)
             except:
                 pass
 
@@ -200,17 +196,21 @@ class StolotoTicketsParser:
         if self._try_pass_captcha_using_click():
             return
 
+        self._solve_captcha()
+
+        raise Exception("UNSOLVABLE CAPTCHA!")
+
+    def _solve_captcha(self):
         self._switch_to_captcha_body()
 
         try:
-            WebDriverWait(self._driver, 30).until(
-                expected_conditions.presence_of_element_located((By.ID, "rc-imageselect"))
-            )
+            self._wait_for_element(By.ID, "rc-imageselect", 30)
         except:
-            self._driver.switch_to.parent_frame()
-            return
+            return self._driver.switch_to.parent_frame()
 
-        captcha_img_path = self._CAPTCHA_SCREENSHOTS_PATH_TEMP.format(r=random.randint(0, 1000))
+        captcha_img_path = self._CAPTCHA_SCREENSHOTS_PATH_TEMP.format(
+            r=random.randint(0, 1000)
+        )
 
         for _ in range(self._CAPTCHA_TRIES_COUNT):
             if _ > 0:
@@ -223,11 +223,9 @@ class StolotoTicketsParser:
                 print("Calnceled bad challenge SKIPED")
 
                 self._driver.find_element(By.ID, "recaptcha-reload-button").click()
-
                 continue
 
             captcha = self._driver.find_element(By.ID, "rc-imageselect")
-
             captcha.screenshot(filename=captcha_img_path)
 
             try:
@@ -242,11 +240,10 @@ class StolotoTicketsParser:
                 )
             except:
                 self._driver.find_element(By.ID, "recaptcha-reload-button").click()
-
                 continue
 
             for tile_number in solve:
-                self._js_click(
+                self._make_js_click(
                     self._driver.find_element(
                         By.CSS_SELECTOR,
                         f'td[tabindex="{tile_number+3}"]'
@@ -255,7 +252,7 @@ class StolotoTicketsParser:
 
                 time.sleep(.5)
 
-            self._js_click(
+            self._make_js_click(
                 self._driver.find_element(By.ID, "recaptcha-verify-button")
             )
 
@@ -272,9 +269,7 @@ class StolotoTicketsParser:
 
         _delete_captcha_img(path=captcha_img_path)
 
-        raise Exception("UNSOLVABLE CAPTCHA!")
-
-    def _try_pass_captcha_using_click(self) -> bool:
+    def _try_pass_captcha_using_click(self) -> bool | None:
         WebDriverWait(self._driver, 30).until(
             expected_conditions.frame_to_be_available_and_switch_to_it((By.XPATH, '//iframe[@title="reCAPTCHA"]'))
         )
@@ -284,7 +279,7 @@ class StolotoTicketsParser:
             locator='recaptcha-anchor',
         )
 
-        self._js_click(checkbox)
+        self._make_js_click(checkbox)
 
         if checkbox.get_attribute('aria-checked') == 'true':
             self._driver.switch_to.parent_frame()
@@ -292,19 +287,8 @@ class StolotoTicketsParser:
 
         self._driver.switch_to.parent_frame()
 
-        return False
-
     def _enter_phone(self, phone: str):
-        WebDriverWait(self._driver, 40).until(
-            expected_conditions.presence_of_element_located(
-                (By.CSS_SELECTOR, 'input[inputmode="tel"]')
-            )
-        )
-
-        phone_input = self._wait_for_element(
-            By.CSS_SELECTOR,
-            'input[inputmode="tel"]'
-        )
+        phone_input = self._wait_for_element(By.CSS_SELECTOR, 'input[inputmode="tel"]', 40)
 
         phone_input.click()
 
@@ -314,11 +298,9 @@ class StolotoTicketsParser:
 
     def _click_start_register_button(self):
         try:
-            WebDriverWait(self._driver, 40).until(
-                expected_conditions.presence_of_element_located(
-                    (By.CSS_SELECTOR, 'a[href="/auth"]')
-                )
-            )
+            self._wait_for_element(By.CSS_SELECTOR,
+                                   'a[href="/auth"]',
+                                   40)
         except:
             raise exceptions.TraficBannedError()
 
@@ -328,35 +310,14 @@ class StolotoTicketsParser:
 
     def _check_login_form_loaded(self):
         try:
-            WebDriverWait(self._driver, 40).until(
-                expected_conditions.presence_of_element_located(
-                    (By.CSS_SELECTOR, 'input[inputmode="tel"]')
-                )
-            )
+            self._wait_for_element(By.CSS_SELECTOR, 'input[inputmode="tel"]', 40)
         except:
             raise exceptions.TraficBannedError()
 
         try:
-            WebDriverWait(self._driver, 60).until(
-                expected_conditions.presence_of_element_located(
-                    (By.CSS_SELECTOR, 'iframe[title="reCAPTCHA"]')
-                )
-            )
+            self._wait_for_element(By.CSS_SELECTOR, 'iframe[title="reCAPTCHA"]', 60)
         except:
             raise exceptions.TraficBannedError()
-
-    def drop_reg_form(self):
-        if self._driver.current_url == self._START_LOGINING_PAGE_URL:
-            return
-
-        self._driver.back()
-
-        for _ in range(2):
-            try:
-                self._check_login_form_loaded()
-                break
-            except:
-                pass
 
     def _check_captcha_passed(self):
         self._driver.switch_to.parent_frame()
@@ -383,7 +344,7 @@ class StolotoTicketsParser:
 
         self._driver.switch_to.frame(captcha)
 
-    def _wait_for_main_header_change(self, text_in: str, timeout: float = 60):
+    def _check_main_header_contains(self, text_in: str, timeout: float = 60):
         START = time.time()
 
         while (time.time() - START) < timeout:
@@ -405,5 +366,5 @@ class StolotoTicketsParser:
     ) -> selenium.webdriver.remote.webelement.WebElement:
         return WebDriverWait(self._driver, timeout).until(expected_conditions.presence_of_element_located((by, locator)))
 
-    def _js_click(self, element: WebElement) -> None:
+    def _make_js_click(self, element: WebElement) -> None:
         self._driver.execute_script('arguments[0].click();', element)
