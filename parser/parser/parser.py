@@ -2,22 +2,17 @@ import os
 import random
 import time
 from pathlib import Path
-import selenium.webdriver.remote.webelement
+
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from seleniumwire.webdriver import Chrome
-from selenium.webdriver.common.action_chains import ActionChains
 
 from db.transfer import AccountMailCredentials
-
-from ..captcha.capguru import CapGuruApiAdapter
-from ..captcha.base import BaseCaptchaSolverAPIAdapter
-from ..captcha.data import CaptchaClickType
-
+from . import base
 from . import utils
+from ..captcha.base import BaseCaptchaSolverAPIAdapter
+from ..captcha.capguru import CapGuruApiAdapter
 
 
 def _delete_captcha_img(path: str):
@@ -28,20 +23,26 @@ def _delete_captcha_img(path: str):
         pass
 
 
-class StolotoTicketsParser:
+class StolotoTicketsParser(base.BaseParser):
     _captcha_solver: BaseCaptchaSolverAPIAdapter
 
     _AFTER_ENTERING_PHONE_PAGE_URLS = ["https://www.stoloto.ru/auth/login?from=reg_phone", "https://www.stoloto.ru/auth/registration-push-sms?from=reg_phone"]
     _START_LOGINING_PAGE_URL = "https://www.stoloto.ru/auth"
     _CAPTCHA_SCREENSHOTS_PATH_TEMP = "D:\\FDISKCOPY\\python\\stoloto\\screenshot-{r}.png"
+    _TICKETS_PAYMENT_QRS_SCREENSHOTS_DIR = str((Path(__file__).parent.parent.parent / "data/tickets-qrs").absolute())
 
     _CAPTCHA_TRIES_COUNT = 50
 
     def __init__(
             self, driver: Chrome,
+            session_id: int,
+            lead_id: int,
             owner_data_generator: utils.OwnerCredentalsGenerator = None,
             captcha_solver_adapter: CapGuruApiAdapter = CapGuruApiAdapter):
         self._driver = driver
+
+        self._session_id = session_id
+        self._lead_id = lead_id
 
         self._owner_data_generator = (owner_data_generator or
                                       utils.OwnerCredentalsGenerator())
@@ -161,8 +162,48 @@ class StolotoTicketsParser:
 
         print("!!! REGISTRATED SUCCESSFULLY !!!")
 
-    def buy_ticket(self):
-        ...
+    def fill_profile_data(self):
+        self._driver.get("https://www.stoloto.ru/private/data?int=lkmain")
+
+        display_name_input = self._wait_for_element(By.CSS_SELECTOR, 'input[name="displayName"]', 30)
+
+        display_name_input.click()
+
+        time.sleep(.5)
+
+        display_name_input.send_keys(self._owner_data_generator.get_random_nick())
+
+        bd_input = self._wait_for_element(By.CSS_SELECTOR, 'input[name="birthDate"]', 30)
+
+        bd_input.click()
+
+        time.sleep(.5)
+
+        bd_input.send_keys(self._owner_data_generator.get_random_bd())
+
+        self._driver.find_element(By.CLASS_NAME, "Button_button__aXkCB Button_primary__8vTWw Button_fluid__2K933 Button_defaultSize__1RE37")
+
+    def buy_ticket(self, ticket_recipient_phone: str) -> str:
+        """
+        Image of QR for payment saved by path: stoloto/data/tickets-qrs/{session_id}-{lead_id}.png
+
+        :param ticket_recipient_phone: Phone of ticket's recipient
+        :return: Path to payment qr screenshot
+        """
+
+        ticket_buyer = utils.TicketBuyer(self._driver)
+
+        ticket_buyer.order_ticket(ticket_recipient_phone=ticket_recipient_phone)
+
+        qr_saving_path = self._get_ticket_qr_saving_path()
+
+        self._wait_for_element(
+            By.CLASS_NAME, "Sbp_container__A0Jah"
+        ).screenshot(
+            filename=qr_saving_path
+        )
+
+        return qr_saving_path
 
     def check_number_not_blocked(self):
         if "не удалось подтвердить номер" in self._driver.page_source.lower():
@@ -358,13 +399,6 @@ class StolotoTicketsParser:
 
         raise Exception("Header not changed!")
 
-    def _wait_for_element(
-        self,
-        by: str = By.ID,
-        locator: str | None = None,
-        timeout: float = 10,
-    ) -> selenium.webdriver.remote.webelement.WebElement:
-        return WebDriverWait(self._driver, timeout).until(expected_conditions.presence_of_element_located((by, locator)))
-
-    def _make_js_click(self, element: WebElement) -> None:
-        self._driver.execute_script('arguments[0].click();', element)
+    def _get_ticket_qr_saving_path(self) -> str:
+        return (self._TICKETS_PAYMENT_QRS_SCREENSHOTS_DIR +
+                f"\\{self._session_id}-{self._lead_id}.png")
