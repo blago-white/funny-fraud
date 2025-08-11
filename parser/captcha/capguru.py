@@ -9,6 +9,8 @@ from .converters.base import BaseCaptchaScreenshotConverter
 from .converters.b64 import CaptchaScreenB64Converter
 from .data import CaptchaClickType
 from .base import BaseCaptchaSolverAPIAdapter
+from .translators.base import BaseInstructionsTranslator
+from .translators.ru import RUInstructionsTranslator
 
 
 class CapGuruApiAdapter(BaseCaptchaSolverAPIAdapter):
@@ -22,15 +24,17 @@ class CapGuruApiAdapter(BaseCaptchaSolverAPIAdapter):
     def __init__(
             self, apikey: str = None,
             apikey_repository: CaptchaServiceApikeyRepository = CaptchaServiceApikeyRepository,
-            image_converter: BaseCaptchaScreenshotConverter = CaptchaScreenB64Converter):
+            image_converter: BaseCaptchaScreenshotConverter = CaptchaScreenB64Converter,
+            instructions_translator: BaseInstructionsTranslator = RUInstructionsTranslator):
         self._apikey = apikey or apikey_repository().get_current()
         self._image_converter = image_converter
+        self._translator = instructions_translator
 
     def solve_captcha(
             self,
             captcha_photo_path: str,
             text_instruction: str,
-            click_type: CaptchaClickType = CaptchaClickType.RECAP):
+            click_type: CaptchaClickType = CaptchaClickType.RECAP2):
         order_id = self._send_captcha(
             captcha_photo_path=captcha_photo_path,
             text_instruction=text_instruction,
@@ -51,10 +55,10 @@ class CapGuruApiAdapter(BaseCaptchaSolverAPIAdapter):
         result = requests.get(url=result_endpoint_url).text
 
         if "OK" in result:
-            print("OK")
-
-            return self._extract_coordinates(
-                response_string=result.split("coordinates:")[-1]
+            return list(
+                map(
+                    int, result.replace("OK|", "").split(",")
+                )
             )
 
     def _send_captcha(
@@ -67,8 +71,8 @@ class CapGuruApiAdapter(BaseCaptchaSolverAPIAdapter):
         ).serialized
 
         payload = dict(
-            textinstructions=text_instruction,
-            click=click_type,
+            textinstructions=self._translator(text_instruction).translated,
+            click=click_type.value,
             key=self._apikey,
             method=self._image_converter.result_datatype_name(),
             body=serialized_screenshot,
@@ -84,8 +88,6 @@ class CapGuruApiAdapter(BaseCaptchaSolverAPIAdapter):
 
     @classmethod
     def _extract_coordinates(cls, response_string: str) -> list:
-        print(response_string)
-
         cords_numbers_list = map(
             lambda cordspair: cordspair.split(","),
             response_string.replace(

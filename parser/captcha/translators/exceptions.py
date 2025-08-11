@@ -1,0 +1,2 @@
+class CaptchaInstructionTranslationError(Exception):
+    pass

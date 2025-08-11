@@ -45,7 +45,7 @@ class GologinProfilesManager:
             "navigator": {
                 "language": 'ru',
                 "userAgent": useragent,
-                "resolution": '1960x1080',
+                "resolution": '2200x1440',
                 "platform": 'win',
             },
             'proxyEnabled': False,
