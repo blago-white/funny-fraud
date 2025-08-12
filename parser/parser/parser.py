@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from seleniumwire.webdriver import Chrome
@@ -72,12 +73,19 @@ class StolotoTicketsParser(base.BaseParser):
 
         self._submit_reg_phone_form()
 
+    def drop_floctory_widget(self):
+        try:
+            self._driver.execute_script('document.getElementById("fl-490579").remove()')
+            self._driver.execute_script('document.getElementsByClassName("flocktory-widget-overlay")[0].remove()')
+        except:
+            return
+
     def enter_reg_sms_code(self, code: str, _recursion_n: int = 0):
         if _recursion_n > 5:
             raise exceptions.RegOtpEnteringError("Cannot enter otp code!")
 
         for idx, dig in enumerate(code, start=1):
-            dig_input = self._driver.find_element(By.ID, f"otp-{idx}")
+            dig_input = self._driver.find_element(f"otp-{idx}")
 
             dig_input.click()
 
@@ -95,7 +103,7 @@ class StolotoTicketsParser(base.BaseParser):
             self._wait_for_element(By.ID, "otp-1", 45)
 
             try:
-                self._driver.find_element(By.ID, "otp-1")
+                self._driver.find_element("otp-1")
             except:
                 self._wait_for_element(By.ID, "otp-1")
 
@@ -185,6 +193,7 @@ class StolotoTicketsParser(base.BaseParser):
         :param ticket_recipient_phone: Phone of ticket's recipient
         :return: Path to payment qr screenshot
         """
+
         self._ticket_buyer.order_ticket(
             ticket_recipient_phone=ticket_recipient_phone
         )
@@ -210,6 +219,15 @@ class StolotoTicketsParser(base.BaseParser):
         if self._driver.current_url == self._START_LOGINING_PAGE_URL:
             return
 
+        self._driver.get(self._START_LOGINING_PAGE_URL)
+
+        phone = self._wait_for_element(By.CSS_SELECTOR, 'input[inputmode="tel"]', 60)
+
+        phone.clear()
+
+        phone.clear()
+
+    def get_back(self):
         self._driver.back()
 
     def _submit_reg_phone_form(self):
@@ -237,8 +255,6 @@ class StolotoTicketsParser(base.BaseParser):
             return
 
         self._solve_captcha()
-
-        raise exceptions.UnsolvableCaptchaError("UNSOLVABLE CAPTCHA!")
 
     def _solve_captcha(self):
         self._switch_to_captcha_body()
@@ -308,6 +324,8 @@ class StolotoTicketsParser(base.BaseParser):
             self._switch_to_captcha_body()
 
         utils.delete_captcha_img(path=captcha_img_path)
+
+        raise exceptions.UnsolvableCaptchaError("UNSOLVABLE CAPTCHA!")
 
     def _try_pass_captcha_using_click(self) -> bool | None:
         WebDriverWait(self._driver, 30).until(

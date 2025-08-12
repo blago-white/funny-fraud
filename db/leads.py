@@ -1,5 +1,6 @@
 import random
 import time
+from csv import excel
 
 from .base import DefaulConcurrentRepository
 from .transfer import LeadGenResult, LeadGenResultStatus, STATUS_MAPPING, \
@@ -133,10 +134,14 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
             self, session_id: int,
             lead_id: int,
             status: str,
+            credentials: AccountCredentials = None,
             error: str = None):
+        input("CONTINUE?: ")
+
         return self._change_status(session_id=session_id,
                                    lead_id=lead_id,
                                    status=status,
+                                   credentials=credentials,
                                    error=error)
 
     @DefaulConcurrentRepository.locked(only_session_id=True)
@@ -159,6 +164,7 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
             self, session_id: int,
             lead_id: int,
             status: str,
+            credentials: AccountCredentials = None,
             error: str = None):
         session = self.get(session_id=session_id)
 
@@ -181,9 +187,11 @@ class LeadGenerationResultsService(DefaulConcurrentRepository):
                 exists[i_id] = (f"{lead_id}*{status}*"
                                 f"{error or result.error}*"
                                 f"{result.ref_link}*"
-                                f"{result.proxy}*",
-                                f"{str(result.credentials)}")
+                                f"{result.proxy}*"
+                                f"{str(credentials) if credentials and not result.credentials else str(result.credentials)}")
                 break
+
+        print(exists)
 
         self._conn.set(name=id_, value="&".join(exists))
 

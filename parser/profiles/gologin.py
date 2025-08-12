@@ -1,3 +1,4 @@
+import datetime
 import random
 import string
 
@@ -24,7 +25,7 @@ class GologinProfilesManager:
 
     def use_profile(self, driver_options: Options,
                     pid: str,
-                    worker_id: int):
+                    worker_id: [int, int]):
         debugger_address = self._get_gologin_debugger(
             pid=pid,
             worker_id=worker_id
@@ -36,11 +37,9 @@ class GologinProfilesManager:
 
         return driver_options
 
-    def get_profile_id(self, useragent: str, proxy: str) -> str:
+    def get_profile_id(self, useragent: str, worker_id: [int, int], proxy: str) -> str:
         pid = self._manager.create({
-            "name": "".join(
-                [random.choice(string.ascii_lowercase) for _ in range(10)]
-            ),
+            "name": f"{datetime.datetime.now().strftime("%d %H:%M")}-{worker_id[0]}-{worker_id[1]}",
             "os": 'win',
             "navigator": {
                 "language": 'ru',
@@ -74,9 +73,9 @@ class GologinProfilesManager:
         self._manager.stop()
 
     def _get_gologin_debugger(self, pid: str, worker_id: int) -> str:
-        print(f"USED PORT: {10000+(worker_id % 10000)}")
+        print(f"USED PORT: {10000+worker_id[1]}")
         return GoLogin({
             "token": self._TOKEN,
             "profile_id": pid,
-            "port": 10000+(worker_id % 10000)
+            "port": 10000+worker_id[1]
         }).start()

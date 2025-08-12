@@ -24,6 +24,8 @@ class ProxyRepository(SimpleConcurrentRepository):
 
     @lock()
     def next(self) -> str:
+        return ""  # FOR DEBUG
+
         body, port = self._proxy_body, self._proxy_port
 
         if not (body and port):

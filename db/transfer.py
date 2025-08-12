@@ -5,6 +5,7 @@ from dataclasses import dataclass
 class LeadGenResultStatus:
     FAILED = "f"
     SUCCESS = "s"
+    LOADING_PROGRESS = "l"
     SUCCES_NO_VERIFIED_MAIL = "n"
     PHONE_CODE_PROGRESS = "p"
     ACCOUNT_REG_PROGRESS = "a"
@@ -19,7 +20,8 @@ STATUS_MAPPING = {
     "p": LeadGenResultStatus.PHONE_CODE_PROGRESS,
     "a": LeadGenResultStatus.ACCOUNT_REG_PROGRESS,
     "m": LeadGenResultStatus.MAIL_VERIFICATION_PROGRESS,
-    "t": LeadGenResultStatus.TICKET_PURCHASING
+    "t": LeadGenResultStatus.TICKET_PURCHASING,
+    "l": LeadGenResultStatus.LOADING_PROGRESS
 }
 
 
@@ -90,5 +92,7 @@ class LeadGenResult:
                 ),
                 number=self.credentials[1]
             )
+        elif self.credentials is None:
+            self.credentials = str()
 
         self.status = STATUS_MAPPING.get(self.status, "f")
