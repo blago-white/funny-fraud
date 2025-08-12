@@ -1,0 +1,2 @@
+class ProfileBannedError(Exception):
+    pass

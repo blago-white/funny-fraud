@@ -37,7 +37,7 @@ class MailCredsRepository(SimpleConcurrentRepository):
         return True, None
 
     @lock()
-    def next(self) -> str:
+    def next(self) -> AccountMailCredentials:
         if not self._current:
             raise MailCredentialsEndedError("Credentials storage is empty!")
 
@@ -65,9 +65,15 @@ class MailCredsRepository(SimpleConcurrentRepository):
     def _get_last_credential(self):
         with open(self._STORAGE_FILE_PATH) as file:
             try:
-                return json.load(file)[0]
+                json_credential = json.load(file)[0]
             except:
                 return None
+
+            return AccountMailCredentials(
+                addr=json_credential.get("mail"),
+                password=json_credential.get("password"),
+                number=json_credential.get("number")
+            )
 
     def _update_current_credential(self):
         self._current = self._drop_last_credential()
@@ -86,7 +92,11 @@ class MailCredsRepository(SimpleConcurrentRepository):
 
         print("PREVIOUS_CRED", credentials)
 
-        new_current_credentials = credentials[0]
+        new_current_credentials = AccountMailCredentials(
+            addr=credentials[0].get("mail"),
+            password=credentials[0].get("password"),
+            number=credentials[0].get("number")
+        )
 
         with open(self._STORAGE_FILE_PATH, "w") as file:
             json.dump(credentials[1:], file)
@@ -106,4 +116,8 @@ class MailCredsRepository(SimpleConcurrentRepository):
 
         print("END", credentials)
 
-        return credentials[0]
+        return AccountMailCredentials(
+            addr=credentials[0].get("mail"),
+            password=credentials[0].get("password"),
+            number=credentials[0].get("number")
+        )

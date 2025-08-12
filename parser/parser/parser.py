@@ -11,16 +11,9 @@ from seleniumwire.webdriver import Chrome
 from db.transfer import AccountMailCredentials
 from . import base
 from . import utils
+from . import exceptions
 from ..captcha.base import BaseCaptchaSolverAPIAdapter
 from ..captcha.capguru import CapGuruApiAdapter
-
-
-def _delete_captcha_img(path: str):
-    try:
-        os.remove(path=path)
-    except:
-        print("CANNOT DELETE CAPTCHA IMAGE!")
-        pass
 
 
 class StolotoTicketsParser(base.BaseParser):
@@ -37,17 +30,17 @@ class StolotoTicketsParser(base.BaseParser):
             self, driver: Chrome,
             session_id: int,
             lead_id: int,
-            owner_data_generator: utils.OwnerCredentalsGenerator = None,
-            captcha_solver_adapter: CapGuruApiAdapter = CapGuruApiAdapter):
+            owner_data_generator: utils.OwnerCredentalsGenerator = utils.OwnerCredentalsGenerator,
+            captcha_solver_adapter: CapGuruApiAdapter = CapGuruApiAdapter,
+            ticket_buyer: utils.TicketBuyer = utils.TicketBuyer):
         self._driver = driver
 
         self._session_id = session_id
         self._lead_id = lead_id
 
-        self._owner_data_generator = (owner_data_generator or
-                                      utils.OwnerCredentalsGenerator())
-
+        self._owner_data_generator = owner_data_generator()
         self._captcha_solver = captcha_solver_adapter()
+        self._ticket_buyer = ticket_buyer(driver=driver)
 
     def open_registration_form(self, url: str):
         self._driver.maximize_window()
@@ -81,7 +74,7 @@ class StolotoTicketsParser(base.BaseParser):
 
     def enter_reg_sms_code(self, code: str, _recursion_n: int = 0):
         if _recursion_n > 5:
-            raise Exception("Cannot send otp code!")
+            raise exceptions.RegOtpEnteringError("Cannot enter otp code!")
 
         for idx, dig in enumerate(code, start=1):
             dig_input = self._driver.find_element(By.ID, f"otp-{idx}")
@@ -117,7 +110,7 @@ class StolotoTicketsParser(base.BaseParser):
         try:
             self._check_main_header_contains(text_in="Регистрация")
         except:
-            raise Exception("Cannot register!")
+            raise exceptions.AccountRegistrationPageError("Cannot register!")
 
         mail_input = self._wait_for_element(
             By.CSS_SELECTOR,
@@ -158,7 +151,9 @@ class StolotoTicketsParser(base.BaseParser):
                 expected_conditions.url_contains("complete")
             )
         except:
-            raise Exception("Registered, buy problems with URL!")
+            raise exceptions.AccountRegistrationPageWarning(
+                "Registered, but problems with URL!"
+            )
 
         print("!!! REGISTRATED SUCCESSFULLY !!!")
 
@@ -190,10 +185,9 @@ class StolotoTicketsParser(base.BaseParser):
         :param ticket_recipient_phone: Phone of ticket's recipient
         :return: Path to payment qr screenshot
         """
-
-        ticket_buyer = utils.TicketBuyer(self._driver)
-
-        ticket_buyer.order_ticket(ticket_recipient_phone=ticket_recipient_phone)
+        self._ticket_buyer.order_ticket(
+            ticket_recipient_phone=ticket_recipient_phone
+        )
 
         qr_saving_path = self._get_ticket_qr_saving_path()
 
@@ -205,9 +199,12 @@ class StolotoTicketsParser(base.BaseParser):
 
         return qr_saving_path
 
-    def check_number_not_blocked(self):
+    def check_number_not_blocked(self, raise_exception: bool = True) -> bool:
         if "не удалось подтвердить номер" in self._driver.page_source.lower():
-            raise Exception("Number blocked!")
+            if raise_exception:
+                raise exceptions.NumberBlockedByStolotoError("Number blocked!")
+            return False
+        return True
 
     def drop_reg_form(self):
         if self._driver.current_url == self._START_LOGINING_PAGE_URL:
@@ -227,11 +224,13 @@ class StolotoTicketsParser(base.BaseParser):
                 pass
 
             if "Забыли пароль?" in self._driver.page_source:
-                raise ValueError("Phone number already registered!")
+                raise exceptions.PhoneAlreadyRegisteredError(
+                    "Phone number already registered!"
+                )
 
             break
         else:
-            raise ValueError("Otp fields not loaded after 120 sec.")
+            raise TimeoutError("Otp fields not loaded after 120 sec.")
 
     def _pass_captcha_challenge(self):
         if self._try_pass_captcha_using_click():
@@ -239,7 +238,7 @@ class StolotoTicketsParser(base.BaseParser):
 
         self._solve_captcha()
 
-        raise Exception("UNSOLVABLE CAPTCHA!")
+        raise exceptions.UnsolvableCaptchaError("UNSOLVABLE CAPTCHA!")
 
     def _solve_captcha(self):
         self._switch_to_captcha_body()
@@ -302,13 +301,13 @@ class StolotoTicketsParser(base.BaseParser):
             if self._check_captcha_passed():
                 self._driver.switch_to.parent_frame()
 
-                _delete_captcha_img(path=captcha_img_path)
+                utils.delete_captcha_img(path=captcha_img_path)
 
                 return
 
             self._switch_to_captcha_body()
 
-        _delete_captcha_img(path=captcha_img_path)
+        utils.delete_captcha_img(path=captcha_img_path)
 
     def _try_pass_captcha_using_click(self) -> bool | None:
         WebDriverWait(self._driver, 30).until(
@@ -397,7 +396,7 @@ class StolotoTicketsParser(base.BaseParser):
 
             time.sleep(1)
 
-        raise Exception("Header not changed!")
+        raise exceptions.PageHeaderNotChangedError("Header not changed!")
 
     def _get_ticket_qr_saving_path(self) -> str:
         return (self._TICKETS_PAYMENT_QRS_SCREENSHOTS_DIR +

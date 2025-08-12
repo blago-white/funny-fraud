@@ -9,6 +9,14 @@ from selenium.webdriver.common.by import By
 from .base import BaseParser
 
 
+def delete_captcha_img(path: str):
+    try:
+        os.remove(path=path)
+    except:
+        print("CANNOT DELETE CAPTCHA IMAGE!")
+        pass
+
+
 class OwnerCredentalsGenerator:
     @staticmethod
     def get_random_bd() -> str:
