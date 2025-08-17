@@ -170,11 +170,25 @@ class StolotoTicketsParser(base.BaseParser):
 
         display_name_input = self._wait_for_element(By.CSS_SELECTOR, 'input[name="displayName"]', 30)
 
+        self.add_banners_dropping_script()
+
         display_name_input.click()
 
         time.sleep(.5)
 
+        display_name_input.clear()
+
+        time.sleep(.5)
+
         display_name_input.send_keys(self._owner_data_generator.get_random_nick())
+
+        time.sleep(.5)
+
+        try:
+            self._driver.execute_script('document.querySelector("label[for=\':Re9akqmkfm:\']").remove()')
+        except:
+            print("CANNOT REMOVE BD LABEL")
+            pass
 
         bd_input = self._wait_for_element(By.CSS_SELECTOR, 'input[name="birthDate"]', 30)
 
@@ -184,7 +198,10 @@ class StolotoTicketsParser(base.BaseParser):
 
         bd_input.send_keys(self._owner_data_generator.get_random_bd())
 
-        self._driver.find_element(By.CLASS_NAME, "Button_button__aXkCB Button_primary__8vTWw Button_fluid__2K933 Button_defaultSize__1RE37")
+        try:
+            self._driver.find_element(By.CLASS_NAME, "Button_button__aXkCB Button_primary__8vTWw Button_fluid__2K933").click()
+        except:
+            self._driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
 
     def buy_ticket(self, ticket_recipient_phone: str) -> str:
         """

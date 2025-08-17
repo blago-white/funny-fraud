@@ -5,6 +5,45 @@ from selenium.webdriver.remote.webelement import WebElement
 
 
 class BaseParser:
+    def add_banners_dropping_script(self):
+        self._driver.execute_script("""
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            async function dropFloctoryWidget() {
+                while (true) {
+                    await sleep(5);
+                    
+                    if (document.getElementsByClassName("flocktory-widget-overlay").length > 0) {
+                        document.getElementsByClassName("flocktory-widget-overlay")[0].remove();
+                        
+                        try {document.getElementsByClassName("flocktory-widget-overlay")[1].remove()} catch {}     
+                    }
+                } 
+            }
+            
+            dropFloctoryWidget()
+        """)
+
+        self._driver.execute_script("""
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            async function dropLayers() {
+                while (true) {
+                    await sleep(5);
+                    
+                    if (document.getElementById("layers")) {
+                        document.getElementById("layers").remove();
+                    }
+                } 
+            }
+            
+            dropLayers()
+        """)
+
     def _wait_for_element(
         self,
         by: str = By.ID,

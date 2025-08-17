@@ -57,7 +57,7 @@ class PlatformLeadsService:
 
         change_status(LeadGenResultStatus.PHONE_CODE_PROGRESS)
 
-        number = code = phone_already_registered =None
+        number = code = phone_already_registered = None
 
         for _ in range(self._NUMBER_REGISTRATION_ATTEMPTS):
             try:
@@ -121,6 +121,8 @@ class PlatformLeadsService:
         except parser_exceptions.AccountRegistrationPageWarning as e:
             print(f"LEAD #{lead_id} WARNING : {str(e)} [{repr(e)}]")
 
+        change_status(LeadGenResultStatus.ACCOUNT_REG_PROGRESS)
+
         try:
             parser.fill_profile_data()
 
@@ -131,6 +133,7 @@ class PlatformLeadsService:
             print(f"LEAD #{lead_id} ERROR AFTER REGISTRATION {str(e)} {repr(e)}")
 
             change_status(LeadGenResultStatus.FAILED)
+
             self._leads_db.change_status(
                 session_id=session_id,
                 lead_id=lead_id,

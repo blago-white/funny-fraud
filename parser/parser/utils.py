@@ -80,12 +80,18 @@ class TicketBuyer(BaseParser):
         :param ticket_recipient_phone: Phone, started with 9..., e.g. 999-333-22-44
         """
 
+        self.add_banners_dropping_script()
+
         self.select_ticket()
 
         time.sleep(1)
 
+        self._driver.execute_script("document.querySelector(\".Icon_icon__pAR_E.BuyAsGift_iconGift__Qj9qR\").remove()")
+
+        time.sleep(1)
+
         self._wait_for_element(
-            By.CSS_SELECTOR, 'input[data-test-id="gift-btn"]'
+            By.CSS_SELECTOR, '.Switcher_container__URZOB.Switcher_withoutText__Kk1CO.Switcher_green__QVtNa'
         ).click()
 
         time.sleep(1)
@@ -100,14 +106,28 @@ class TicketBuyer(BaseParser):
 
         time.sleep(1)
 
-        self._wait_for_element(
-            By.CSS_SELECTOR, 'button[data-test-id="sbp"]'
-        ).click()
+        try:
+            self._wait_for_element(
+                By.CSS_SELECTOR, 'button[data-test-id="sbp"]'
+            ).click()
+        except:
+            try:
+                self._driver.execute_script("document.getElementsByClassName(\"Toast_progressBar__PC29d\")[0].remove()")
+            except:
+                pass
+
+            time.sleep(15)
+
+            self._wait_for_element(
+                By.CSS_SELECTOR, 'button[data-test-id="sbp"]'
+            ).click()
+
+        time.sleep(1)
 
     def select_ticket(self):
         link = self.get_link()
 
-        driver.get(url=link.value)
+        self._driver.get(url=link.value)
 
         self.select_ticket_on_page(game=link)
 
@@ -120,11 +140,18 @@ class TicketBuyer(BaseParser):
     def select_ticket_on_page(
             self, game: ExpensiveStolotoGames | CheapStolotoGames
     ):
-        self.__getattribute__(self._METHOD_BY_GAME[game])(self)
+        time.sleep(1)
+
+        try:
+            self._driver.execute_script("document.getElementsByClassName(\"Toast_progressBar__PC29d\")[0].remove()")
+        except:
+            pass
+
+        self.__getattribute__(self._METHOD_BY_GAME[game])()
 
     def _select_fzp(self):
         self._wait_for_element(
-            By.CLASS_NAME, "Ticket_btn__1NSeH Ticket_montserrat__4wFhQ", 60
+            By.CLASS_NAME, "Ticket_btn__1NSeH", 60
         ).click()
 
     def _select_dvadva(self):
